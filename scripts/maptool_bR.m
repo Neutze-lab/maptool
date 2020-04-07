@@ -1,7 +1,6 @@
 % maptool_bR
 % -------------------------------------------------------------------------
-% author: Cecilia Wickstrand
-% date: 05-04-2020
+% written by Cecilia Wickstrand, 05-04-2020
 %
 % publication: 
 % "A tool for visualizing protein motions in time-resolved crystallography"
@@ -22,9 +21,6 @@
 % Before analysis, execute "process_maps.sh" to convert the maps to 
 % cartesian coordinates and .h5 format.
 % -------------------------------------------------------------------------
-
-clear all
-close all
 
 
 % INPUT
