@@ -1,7 +1,7 @@
 % maptool_rhodopsin
 % -------------------------------------------------------------------------
-% written by Cecilia Wickstrand, 05-04-2020
-% Modified by Adams Vallejos on 30-10-2020
+% written by Cecilia Wickstrand
+% Modified by Adams Vallejos
 %
 % publication: 
 % "A tool for visualizing protein motions in time-resolved crystallography"
@@ -31,13 +31,13 @@ sigmacutoff = 3; % exclude data below this sigma level
 
 
 % Files
-here = '/home/adams/data_proc/mapTool/maptool-rhodopsin/';
-pdbpath = [here '/input/RHO_chainB.pdb']; % resting state pdb
+here = '/PATH/TO//maptool-rhodopsin/';
+pdbpath = [here '/input/PDBFILE.pdb']; % resting state pdb
 indir = [here 'output/']; % where to find .h5 maps
 
-mapnames = {'001ps'; '100ps'};
+mapnames = {'FOO_1'; 'FOO_2'};
 
-timeticks = {'1 ns', '100 ns'}';
+timeticks = {'TIMEPOINT_1', 'TIMEPOINT_2'}';
 
 
 
@@ -218,30 +218,29 @@ ticks_res{end} = 'RET';
 figure('units','normalized','outerposition',[0 0 1 1],'name',['radius ' num2str(radius) ' Å, ' num2str(sigmacutoff) ' sigma,'])
 
 % 1. mean pos/neg density, selected residues around site
-% subplot(2,3,1)
-% scale_E_set = 4;
-%     hold all
-%     for n = 1:nrmaps
-%         line([1 length(selected_res)], [1/scale_E_set+(n) 1/scale_E_set+(n)],'color', [0.8 0.8 0.8],'linestyle','--')
-%         line([1 length(selected_res)], [-1/scale_E_set+(n) -1/scale_E_set+(n)],'color', [0.8 0.8 0.8],'linestyle','--')
-%         plot(1:length(selected_res), -meanposden(n,selected_res)/scale_E_set+(n),'color', slate) 
-%         plot(1:length(selected_res), -meannegden(n,selected_res)/scale_E_set+(n),'color', golden)
-%     end
-%     for i = 1:nrmaps
-%         line([1 length(selected_res)], [(i) (i)],'color', [0.8 0.8 0.8])
-%     end
-%     for h = 2:length(limits_res)
-%         line([limits_res(h,1)-0.5 limits_res(h,1)-0.5],[0 nrmaps+1],'color', 'k')
-%     end 
-%     ylim([0 nrmaps+1])
-%     xlim([1 length(selected_res)])
-%     title('Selected residues')   
-%     set(gca,'XTickLabel',ticks_res,'XTick', mean(limits_res,2)','Ytick',1:nrmaps,'Yticklabel', timeticks)
-%     set(gca,'Ydir','reverse', 'XAxisLocation', 'top','TickDir','out', 'box','on','FontSize',fontsize)
+subplot(2,3,1)
+scale_E_set = 4;
+    hold all
+    for n = 1:nrmaps
+        line([1 length(selected_res)], [1/scale_E_set+(n) 1/scale_E_set+(n)],'color', [0.8 0.8 0.8],'linestyle','--')
+        line([1 length(selected_res)], [-1/scale_E_set+(n) -1/scale_E_set+(n)],'color', [0.8 0.8 0.8],'linestyle','--')
+        plot(1:length(selected_res), -meanposden(n,selected_res)/scale_E_set+(n),'color', slate) 
+        plot(1:length(selected_res), -meannegden(n,selected_res)/scale_E_set+(n),'color', golden)
+    end
+    for i = 1:nrmaps
+        line([1 length(selected_res)], [(i) (i)],'color', [0.8 0.8 0.8])
+    end
+    for h = 2:length(limits_res)
+        line([limits_res(h,1)-0.5 limits_res(h,1)-0.5],[0 nrmaps+1],'color', 'k')
+    end 
+    ylim([0 nrmaps+1])
+    xlim([1 length(selected_res)])
+    title('Selected residues')   
+    set(gca,'XTickLabel',ticks_res,'XTick', mean(limits_res,2)','Ytick',1:nrmaps,'Yticklabel', timeticks)
+    set(gca,'Ydir','reverse', 'XAxisLocation', 'top','TickDir','out', 'box','on','FontSize',fontsize)
 
  % 2. mean pos/neg density, all atoms    
-%  subplot(2,3,[2 3])
-% subplot(2,2,[1 2])
+ subplot(2,3,[2 3])
     hold all
     for n = 1:nrmaps
         plot(1:nratoms, -meanposden(n,:)/scale_E+(n),'color', slate,'LineWidth',1.5) 
@@ -263,36 +262,35 @@ figure('units','normalized','outerposition',[0 0 1 1],'name',['radius ' num2str(
     set(gca,'Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize',fontsize)
     
 % 3. mean pos/neg density, C alpha atoms
-% subplot(2,3,[5 6])
-% subplot(2,2,[3 4])
-%     hold all
-%     for n = 1:nrmaps
-%         plot(1:length(selected_Ca), -meanposden(n,selected_Ca)/scale_E+(n),'color', slate,'LineWidth',1.5) 
-%         plot(1:length(selected_Ca), -meannegden(n,selected_Ca)/scale_E+(n),'color', golden,'LineWidth',1.5)
-%     end
-%     for i = 1:nrmaps
-%         line([1 length(selected_Ca)], [(i) (i)],'color', [0.8 0.8 0.8])
-%     end   
-%     for h = 1:length(limits_Ca)
-%         line([limits_Ca(h,1)-0.5 limits_Ca(h,1)-0.5],[0 nrmaps+1],'color', 'k')
-%         line([limits_Ca(h,2)+0.5 limits_Ca(h,2)+0.5],[0 nrmaps+1],'color', 'k')
-%     end 
-%     set(gca,'XTickLabel',{'1', '2', '3', '4', '5', '6','7','8'},'XTick', mean(limits_Ca,2)')
-%     set(gca,'TickDir','out','Ytick',1:nrmaps,'Yticklabel', timeticks)
-%     ylim([0 nrmaps+1])
-%     xlim([1 length(selected_Ca)])
-%     title('C alphas')
-%     set(gca,'Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize',fontsize)
+subplot(2,3,[5 6])
+    hold all
+    for n = 1:nrmaps
+        plot(1:length(selected_Ca), -meanposden(n,selected_Ca)/scale_E+(n),'color', slate,'LineWidth',1.5) 
+        plot(1:length(selected_Ca), -meannegden(n,selected_Ca)/scale_E+(n),'color', golden,'LineWidth',1.5)
+    end
+    for i = 1:nrmaps
+        line([1 length(selected_Ca)], [(i) (i)],'color', [0.8 0.8 0.8])
+    end   
+    for h = 1:length(limits_Ca)
+        line([limits_Ca(h,1)-0.5 limits_Ca(h,1)-0.5],[0 nrmaps+1],'color', 'k')
+        line([limits_Ca(h,2)+0.5 limits_Ca(h,2)+0.5],[0 nrmaps+1],'color', 'k')
+    end 
+    set(gca,'XTickLabel',{'1', '2', '3', '4', '5', '6','7','8'},'XTick', mean(limits_Ca,2)')
+    set(gca,'TickDir','out','Ytick',1:nrmaps,'Yticklabel', timeticks)
+    ylim([0 nrmaps+1])
+    xlim([1 length(selected_Ca)])
+    title('C alphas')
+    set(gca,'Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize',fontsize)
 
 % 4. Pearson correlation
-% subplot(2,3,4)
-%     imagesc(Pscore)
-%     colorbar
-%     axis('square')
-%     caxis([0 1])
-%     set(gca,'TickDir','out','Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize', fontsize)
-%     set(gca,'Ytick',1:nrmaps,'Yticklabel', timeticks,'Xtick',1:nrmaps,'Xticklabel', timeticks)
-%     title('Correlation')
+subplot(2,3,4)
+    imagesc(Pscore)
+    colorbar
+    axis('square')
+    caxis([0 1])
+    set(gca,'TickDir','out','Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize', fontsize)
+    set(gca,'Ytick',1:nrmaps,'Yticklabel', timeticks,'Xtick',1:nrmaps,'Xticklabel', timeticks)
+    title('Correlation')
     
 
     
@@ -327,5 +325,3 @@ figure('units','normalized','outerposition',[0 0 1 1],'name',['radius ' num2str(
 %     the calculated densites (-0.0269    0.0157    0.0657   -0.0954)
 %     are identical to those seen in coot.
 %**************************************************************************
-
-   
