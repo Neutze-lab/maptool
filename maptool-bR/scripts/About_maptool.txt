@@ -14,12 +14,14 @@ https://doi.org/10.1063/1.5126921
 The uploaded set of scripts give an example for analysis of three maps (16 ns, 760 ns and 1.725 ms). 
 
 Scripts:
-- process_maps.sh	
+- pdbSize.m
+	Obtains grid dimensions for MAPROT
+- processMaps.sh	
 	Translates maps to cartesian coordinates
 	Converts cartesian map files to h5 format
 	Saves information on map dimensions etc.
 
-- map_to_h5.py (used in process_maps.sh)
+- map_to_h5.py (used in processMaps.sh)
 	Used for conversion from map to h5 format
 
 - maptool_bR.m
@@ -27,11 +29,11 @@ Scripts:
 
 To run the analysis:
 - Download the files and change the path to the "maptool" directory within the scripts
-- Execute process_maps.sh 
+- Execute processMaps.sh 
 - Open matlab and run maptool_bR.m
 
 Comments on using the tool on other datasets:
-- process_maps.sh
+- processMaps.sh
 	If all angels are already 90 degrees, remove the conversion to cartesian coordinates.
 	If a map is not covering the atoms of interest including a border to cover the spheres it may be extended using mapmask BORDER.
 
