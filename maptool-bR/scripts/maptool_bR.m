@@ -1,4 +1,4 @@
-% maptool_bR_ref
+% maptool_bR
 %% -------------------------------------------------------------------------
 % written by Cecilia Wickstrand, 05-04-2020
 % modified by Adams Vallejos, 09-11-2020
