@@ -1,6 +1,7 @@
-% maptool_bR
-% -------------------------------------------------------------------------
+% maptool_bR_ref
+%% -------------------------------------------------------------------------
 % written by Cecilia Wickstrand, 05-04-2020
+% modified by Adams Vallejos, 09-11-2020
 %
 % publication: 
 % "A tool for visualizing protein motions in time-resolved crystallography"
@@ -23,284 +24,398 @@
 % -------------------------------------------------------------------------
 
 
-% INPUT
+%% INPUT
 % -------------------------------------------------------------------------
-
-% Sphere and sigma settings
-radius = 2; %Å
-distance = 0.5; %Å, how dense grid within sphere
-sigmacutoff = 3; % exclude data below this sigma level
+clear
+clc
+% SPHERE AND SIGMA SETTINGS
+radius = 2; % Å
+gridSpacing = 0.5; %Å, how dense grid within sphere
+rmsCutoff = 3; % exclude data below this sigma level
 
 
 % Files
-here = '/GIVE_PATH_TO_MAPTOOL/maptool/';
-pdbpath = [here '/input/5b6v-H_protein_ret_h2o.pdb']; % resting state pdb
-indir = [here 'output/']; % where to find .h5 maps
+% Main folder of MAPTOOL
+mainPath = '/GIVE_PATH_TO_MAPTOOL/maptool/';%  ;
 
-mapnames = {'01_0.016us'; '05_0.760us'; '13_1725us'};
+% Resting state pdb file
+pdbFile = [mainPath '/input/5b6v-H_protein_ret_h2o.pdb'];
 
-timeticks = {'16 ns', '760 ns', '1.725 ms'}';
+% Path to .h5 maps obtained from 'processMaps.sh'
+inputDirectory = [mainPath 'output/'];
 
+% Names of map files without extension
+mapFileName = {'01_0.016us'; '05_0.760us'; '13_1725us'};
 
+% Corresponding time-points of maps above
+timePointLabels = {'16 ns', '760 ns', '1.725 ms'}';
 
-% START CALCULATIONS
+%%  START CALCULATIONS
 % ------------------------------------------------------------------------
-time = tic;
+% Clock starts ticking
+tic;
 
+% Number of atoms in pdb file
+restingState = pdbread(pdbFile);
 
-% LOAD ATOMS
-pdb = pdbread(pdbpath);
+% -------------------------------------------------------------------------
+% Only ATOM label in pdb file, here HETATM is substituted by ATOM
+atomicCoordinates = [...
+    [restingState.Model.Atom.X]'...
+    [restingState.Model.Atom.Y]'...
+	[restingState.Model.Atom.Z]'...
+];
 
-% In this case all HETATM are written as ATOM in pdb
-atomcoord = [[pdb.Model.Atom.X]' [pdb.Model.Atom.Y]' [pdb.Model.Atom.Z]'];...
-             %[pdb.Model.HeterogenAtom.X]' [pdb.Model.HeterogenAtom.Y]' [pdb.Model.HeterogenAtom.Z]'];
-nratoms =  size(atomcoord,1);
+% With HETATM in pdb file
+% atomicCoordinates = [...
+%     [restingState.Model.Atom.X]'...
+%     [restingState.Model.Atom.Y]'...
+%     [restingState.Model.Atom.Z]'];...
+%     [restingState.Model.HeterogenAtom.X]'...
+%     [restingState.Model.HeterogenAtom.Y]'...
+%     [restingState.Model.HeterogenAtom.Z]'];
+% -------------------------------------------------------------------------
 
+% Get number of atoms in the restingstate
+numberOfAtoms = size(atomicCoordinates, 1);
 
-% CALCULATE SPHERE COORDINATES
-calcdist = @(x,y,z) sqrt(x^2 + y^2 + z^2);
+% Calculate distance from sphere center
+distanceWithinSphere = @(x,y,z) sqrt(x^2 + y^2 + z^2);
 
-% radius 2 distance 0.5 -> spots = [-2 -1.5 -1 -0.5 0 0.5 1 1.5 2]
-spots = distance:distance:ceil(radius/distance)*distance;
-spots = [-fliplr(spots) 0 spots];
-nrspots = length(spots);
+% -------------------------------------------------------------------------
+% Generate spots of cubic grid with sphere inscribed
+spots = linspace(-radius, radius, 2*(radius/gridSpacing) + 1);
+numberOfSpots = length(spots);
 
-% spherelist column 1 2 3 = coordinates
-spherelist= zeros(nrspots^3,7);
+% List grid spots within the sphere
+sphereList= zeros(numberOfSpots^3, 7);
 count = 0;
-for i = 1:nrspots
-   for j = 1:nrspots
-        for k = 1:nrspots
-            dist = calcdist(spots(i),spots(j),spots(k));
-            if dist <= radius
+for i = 1 : numberOfSpots
+   for j = 1 : numberOfSpots
+        for k = 1 : numberOfSpots
+            distance = distanceWithinSphere( spots(i) , spots(j) , spots(k) );
+            if distance <= radius
                count = count + 1;
-               spherelist(count,:) = [spots(i) spots(j) spots(k) i j k dist];
+               sphereList(count,:) = [spots(i) spots(j) spots(k) i j k distance];
             end
         end
    end
 end
-spherelist = spherelist(1:count,:); 
-nrpoints = size(spherelist,1);
-
+sphereList = sphereList(1:count, :); 
+numberOfPoints = size(sphereList, 1);
+% -------------------------------------------------------------------------
 
 % PRECALCULATE ALL COORDINATES IN ALL SPHERES
 % (example: 1834 rows = atoms, 2109 columns = points) 
-X = repmat(atomcoord(:,1),1,nrpoints)+repmat(spherelist(:,1)',nratoms,1);
-Y = repmat(atomcoord(:,2),1,nrpoints)+repmat(spherelist(:,2)',nratoms,1);
-Z = repmat(atomcoord(:,3),1,nrpoints)+repmat(spherelist(:,3)',nratoms,1);
+X = repmat(atomicCoordinates(:,1), 1, numberOfPoints)+repmat(sphereList(:,1)', numberOfAtoms, 1);
+Y = repmat(atomicCoordinates(:,2), 1, numberOfPoints)+repmat(sphereList(:,2)', numberOfAtoms, 1);
+Z = repmat(atomicCoordinates(:,3), 1, numberOfPoints)+repmat(sphereList(:,3)', numberOfAtoms, 1);
 
 % Reshape to a single column starting with first point for each atom, then second etc. 
-X=reshape(X, nratoms*nrpoints,1);
-Y=reshape(Y, nratoms*nrpoints,1);
-Z=reshape(Z, nratoms*nrpoints,1);
+X=reshape(X, numberOfAtoms*numberOfPoints, 1);
+Y=reshape(Y, numberOfAtoms*numberOfPoints, 1);
+Z=reshape(Z, numberOfAtoms*numberOfPoints, 1);
 
-
-% LOAD GRID
+% LOAD GRID FROM MAP
 % (using first experimental XYZinfo file - here all files have the same grid)
-XYZinfo = dlmread([indir 'log/' mapnames{1} '_XYZinfo.dat']);
+XYZinfo = dlmread([inputDirectory 'log/' mapFileName{1} '_XYZinfo.dat']);
 
-celldimensions = XYZinfo(1,1:3);
-gridpoints = XYZinfo(2,1:3); 
-axislimits = XYZinfo(3,:);
-axisorder = XYZinfo(4,1:3);
+% Dimensions of cartesian cell
+cellDimensions = XYZinfo(1,1:3);
+% Grid dimensions of cartesian map
+gridPoints = XYZinfo(2,1:3); 
+% Boundaries of cell axes
+axesBoundaries = XYZinfo(3,:);
+% Order of axes
+axesOrder = XYZinfo(4,1:3);
 
-% grid distance
-dX = celldimensions(1)/gridpoints(1);
-dY = celldimensions(2)/gridpoints(2);
-dZ = celldimensions(3)/gridpoints(3);
+% Grid spacing
+dX = cellDimensions(1)/gridPoints(1);
+dY = cellDimensions(2)/gridPoints(2);
+dZ = cellDimensions(3)/gridPoints(3);
 
-tmp = [axisorder(1) axislimits(1:2); axisorder(2) axislimits(3:4); axisorder(3) axislimits(5:6)];
-axes = sortrows(tmp);
+% Re-arrange axes according to ordering of coordinates order from maps
+axes = sortrows([axesOrder(1) axesBoundaries(1:2);
+                 axesOrder(2) axesBoundaries(3:4);
+                 axesOrder(3) axesBoundaries(5:6)]);
 
-% points at each side
-sX = [axes(1,2):axes(1,3)]*dX;
-sY = [axes(2,2):axes(2,3)]*dY;
-sZ = [axes(3,2):axes(3,3)]*dZ;
+% Number of points on each side of the grid
+sX = (axes(1,2) : axes(1,3)) * dX;
+sY = (axes(2,2) : axes(2,3)) * dY;
+sZ = (axes(3,2) : axes(3,3)) * dZ;
 
-[gY,gZ,gX] = meshgrid(sY,sZ,sX);
+% 3D grid coordinates with dimensions from above
+[gY, gZ, gX] = meshgrid(sY, sZ, sX);
 
 
 % LOAD MAPS AND EXTRACT DENSITIES
 % ------------------------------------------------------------------------
-nrmaps = length(mapnames);
-sigma = zeros(nrmaps, 2);
-mapd0 = zeros(nrmaps, nratoms, nrpoints);
+numberOfMaps = length(mapFileName);
 
-for m = 1:nrmaps
-    fprintf(['Currently at map ' num2str(m) ' time ' num2str(toc(time)) ' s\n'])
+% Read rms(sigma) from maps
+rmsFromMaps = zeros(numberOfMaps, 2);
 
-    % Load sigma info
-    XYZinfo = dlmread([indir 'log/' mapnames{m} '_XYZinfo.dat']);
-    sigma(m,1:2) = XYZinfo(5:6,1);
+% Populate with mal densities
+normalizedDensities = zeros(numberOfMaps, numberOfAtoms, numberOfPoints);
+for m = 1:numberOfMaps
+    formatSpec= 'Currently at map %s time %g s\n';
+    fprintf(formatSpec,mapFileName{m},toc(tic))
 
-    
-    % LOAD MAP AND CALCULATE DENSITY AT POINTS BY INTERPOLATION
-    % reshape back to rows = atoms, columns = points
-    map = hdf5read([indir mapnames{m} '_cartesian.h5'],'map');
-    tmp = interp3(gY,gZ,gX,map,Y,Z,X);
+%   Load sigma info
+    XYZinfo = dlmread([inputDirectory 'log/' mapFileName{m} '_XYZinfo.dat']);
+    rmsFromMaps(m,1:2) = XYZinfo(5:6,1);
 
-    mapdensities = reshape(tmp, nratoms, nrpoints);
-    % divide with sigma of original map
-    mapd0(m,:,:) = mapdensities/sigma(m,2); 
+%   LOAD MAP AND CALCULATE DENSITY AT POINTS BY INTERPOLATION
+%   reshape back to: rows = atoms, columns = points
+    cartesianMap = h5read([inputDirectory mapFileName{m} '_cartesian.h5'],'/map');
+    interpolatedDensities = interp3(gY,gZ,gX,cartesianMap,Y,Z,X);
+
+    mapDensities = reshape(interpolatedDensities, numberOfAtoms, numberOfPoints);
+%   Divide with sigma of original map
+    normalizedDensities(m,:,:) = mapDensities/rmsFromMaps(m,2); 
 end
 
 
 % CALCULATE AVERAGE DENSITIES AND CORRELATIONS
 %------------------------------------
 % Calculate mean positive and negative densities
-mapd = mapd0;
-mapd(abs(mapd0) < sigmacutoff) = 0;
+mapDensitiesAbsolute = normalizedDensities;
+mapDensitiesAbsolute(abs(normalizedDensities) < rmsCutoff) = 0;
 
-mapd_pos = mapd;
-mapd_pos(mapd < 0) = 0;
-meanposden = mean(mapd_pos,3);
+mapDensities_positive = mapDensitiesAbsolute;
+mapDensities_positive(mapDensitiesAbsolute < 0) = 0;
+meanpositiveDensities = mean(mapDensities_positive,3);
 
-mapd_neg = mapd;
-mapd_neg(mapd > 0) = 0;
-meannegden = mean(mapd_neg,3);
+mapDensities_negative = mapDensitiesAbsolute;
+mapDensities_negative(mapDensitiesAbsolute > 0) = 0;
+meanNegativeDensitues = mean(mapDensities_negative,3);
 
-% Calculate Pscore = pearson correlation (<A+> <A->, <B+> <B->)
-Pscore = zeros(nrmaps,nrmaps);
+% Calculate pearson correlation (<A+> <A->, <B+> <B->)
+pearsonCorrelation = zeros(numberOfMaps,numberOfMaps);
 
-for m = 1:nrmaps
-    for n = 1:nrmaps
-        Pscore(m,n) = corr2([meanposden(m,:) meannegden(m,:)],[meanposden(n,:) meannegden(n,:)]);
+for m = 1:numberOfMaps
+    for n = 1:numberOfMaps
+        pearsonCorrelation(m,n) = corr2(...
+            [meanpositiveDensities(m,:) meanNegativeDensitues(m,:)],...
+            [meanpositiveDensities(n,:) meanNegativeDensitues(n,:)]);
     end
 end
 
-
-% PREPARE EXAMPLE PLOTS
+% PREPARE PLOTS
 %------------------------------------
 fprintf('Preparing plots.\n')
 
 % Plot settings
-golden = [0.83, 0.65, 0.13]*0.8;
-slate = [0.5 0.5 1]*0.8;
-fontsize = 12;
-fontname = 'helvetica narrow';
-set(0,'DefaultAxesFontName',fontname,'DefaultTextFontName',fontname);
+% RGB Colors normalized to 256
+golden = [0.7, 0.5, 0];
+purple = [0.5, 0.4, 1];
+silver = [0.8, 0.8, 0.8];
+fontSize = 12;
+fontName = 'helvetica narrow';
+lineWidth = 1; % Default value 0.5
+labelAll= {'A', 'B', 'C', 'D', 'E', 'F','G','RET'};
+labelCA = {'A', 'B', 'C', 'D', 'E', 'F','G'};
+% Set fonts in all figures
+set(0,'DefaultAxesFontName',fontName,'DefaultTextFontName',fontName);
 
-% avoid overlapping in plots        
-scale_E = max(max(meanposden-meannegden));
+% Avoid overlapping in plots        
+scale_E = max(max(meanpositiveDensities-meanNegativeDensitues));
 
 % For plotting all atoms, find where helices start and stop
-helix_limits_res = [6 32; 37 58; 80 100; 105 127; 131  160; 165 191; 201 224;300 300];
-res_all = [pdb.Model.Atom.resSeq]'; 
-limits_all = zeros(size(helix_limits_res));
-for h = 1:size(helix_limits_res,1)
-    limits_all(h,1) = find(res_all==helix_limits_res(h,1), 1, 'first');
-    limits_all(h,2) = find(res_all==helix_limits_res(h,2), 1, 'last');
+bR_helix = [6   32;
+            37  58;
+            80  100;
+            105 127;
+            131 160;
+            165 191;
+            201 224;
+            300 300];
+
+% Get residues index from resting state
+allResidues = [restingState.Model.Atom.resSeq]'; 
+
+% Select residues from limits above
+limitsHelix = zeros(size(bR_helix));
+for h = 1:size(bR_helix,1)
+    limitsHelix(h,1) = find(allResidues==bR_helix(h,1), 1, 'first');
+    limitsHelix(h,2) = find(allResidues==bR_helix(h,2), 1, 'last');
 end
 
 % For plotting C alphas, find where helices start and stop
-selected_Ca = find(strcmp({pdb.Model.Atom.AtomName}','CA'));
-res_Ca = [pdb.Model.Atom(selected_Ca).resSeq]'; 
-helix_limits_res = [6 32; 37 58; 80 100; 105 127; 131  160; 165 191; 201 224];
-limits_Ca = zeros(size(helix_limits_res));
-for h = 1:size(helix_limits_res,1)
-    limits_Ca(h,1) = find(res_Ca==helix_limits_res(h,1), 1, 'first');
-    limits_Ca(h,2) = find(res_Ca==helix_limits_res(h,2), 1, 'last');
+selectedCA = find(strcmp({restingState.Model.Atom.AtomName}','CA'));
+residuesCA = [restingState.Model.Atom(selectedCA).resSeq]'; 
+
+bR_helix = [6   32;
+            37  58;
+            80  100;
+            105 127;
+            131 160;
+            165 191;
+            201 224];
+
+limitsCA = zeros(size(bR_helix));
+for h = 1:size(bR_helix,1)
+    limitsCA(h,1) = find(residuesCA==bR_helix(h,1), 1, 'first');
+    limitsCA(h,2) = find(residuesCA==bR_helix(h,2), 1, 'last');
 end
 
-% For plotting selected residues, find where residues start and stop
-res = [pdb.Model.Atom.resSeq]';
-resofinterest = [82 85 89 182 212 216 300];
-selected_res = find(ismember(res, resofinterest));
-limits_res = zeros(length(resofinterest),2);
-for i = 1:length(limits_res)
-    limits_res(i,1) = find(res(selected_res)==resofinterest(i), 1, 'first');
-    limits_res(i,2) = find(res(selected_res)==resofinterest(i), 1, 'last');
-    ticks_res{i} = num2str(resofinterest(i));
+% Select functionally relevant residues at the active site
+residuesOfInterest = [82 85 89 182 212 216 300];
+
+selectedResidues = find(ismember(allResidues, residuesOfInterest));
+limitsResidues = zeros(length(residuesOfInterest),2);
+ticks = cell(1,length(residuesOfInterest));
+for i = 1:length(limitsResidues)
+    limitsResidues(i,1) = find(allResidues(selectedResidues)==residuesOfInterest(i), 1, 'first');
+    limitsResidues(i,2) = find(allResidues(selectedResidues)==residuesOfInterest(i), 1, 'last');
+    ticks{i} = num2str(residuesOfInterest(i));
 end
-ticks_res{end} = 'RET';
+ticks{end} = 'RET';
 
 
 % PLOT
 %------------------------------------
-figure('units','normalized','outerposition',[0 0 1 1],'name',['radius ' num2str(radius) ' Å, ' num2str(sigmacutoff) ' sigma,'])
+% figure('units','normalized','outerposition',[0 0 1 1],'name',['radius '...
+%num2str(radius) ' Å, ' num2str(rmsCutoff) ' sigma,'])
+figure('name',['radius ' num2str(radius) ' Å, ' num2str(rmsCutoff) ' sigma,'])
+
 
 % 1. mean pos/neg density, selected residues around site
 subplot(2,3,1)
-scale_E_set = 4;
+set_scale_E = 4;
     hold all
-    for n = 1:nrmaps
-        line([1 length(selected_res)], [1/scale_E_set+(n) 1/scale_E_set+(n)],'color', [0.8 0.8 0.8],'linestyle','--')
-        line([1 length(selected_res)], [-1/scale_E_set+(n) -1/scale_E_set+(n)],'color', [0.8 0.8 0.8],'linestyle','--')
-        plot(1:length(selected_res), -meanposden(n,selected_res)/scale_E_set+(n),'color', slate) 
-        plot(1:length(selected_res), -meannegden(n,selected_res)/scale_E_set+(n),'color', golden)
-    end
-    for i = 1:nrmaps
-        line([1 length(selected_res)], [(i) (i)],'color', [0.8 0.8 0.8])
-    end
-    for h = 2:length(limits_res)
-        line([limits_res(h,1)-0.5 limits_res(h,1)-0.5],[0 nrmaps+1],'color', 'k')
-    end 
-    ylim([0 nrmaps+1])
-    xlim([1 length(selected_res)])
-    title('Selected residues')   
-    set(gca,'XTickLabel',ticks_res,'XTick', mean(limits_res,2)','Ytick',1:nrmaps,'Yticklabel', timeticks)
-    set(gca,'Ydir','reverse', 'XAxisLocation', 'top','TickDir','out', 'box','on','FontSize',fontsize)
+    for n = 1:numberOfMaps
+        line([1 length(selectedResidues)],...
+             [1/set_scale_E+(n) 1/set_scale_E+(n)],...
+             'color', silver,...
+             'linestyle','--')
 
- % 2. mean pos/neg density, all atoms    
+        line([1 length(selectedResidues)],...
+             [-1/set_scale_E+(n) -1/set_scale_E+(n)],...
+             'color', silver,...
+             'linestyle','--')
+
+        plot(1:length(selectedResidues),...
+            -meanpositiveDensities(n,selectedResidues)/set_scale_E+(n),...
+            'color', purple,...
+            'LineWidth',lineWidth) 
+        
+        plot(1:length(selectedResidues),...
+             -meanNegativeDensitues(n,selectedResidues)/set_scale_E+(n),...
+             'color', golden,...
+             'LineWidth',lineWidth)
+    end
+
+    for i = 1:numberOfMaps
+        line([1 length(selectedResidues)], [(i) (i)],'color', silver)
+    end
+
+    for h = 2:length(limitsResidues)
+        line([limitsResidues(h,1)-0.5 limitsResidues(h,1)-0.5],...
+             [0 numberOfMaps+1],'color', 'k')
+    end 
+    ylim([0 numberOfMaps+1])
+    xlim([1 length(selectedResidues)])
+    title('Selected residues')   
+    set(gca,...
+        'XTickLabel',ticks,...
+        'XTick', mean(limitsResidues,2)',...
+        'Ytick',1:numberOfMaps,...
+        'Yticklabel', timePointLabels)
+
+    set(gca,...
+        'Ydir','reverse',...
+        'XAxisLocation', 'top',...
+        'TickDir','out',...
+        'box','on',...
+        'FontSize',fontSize)
+
+ % 2. Mean pos/neg density, all atoms    
  subplot(2,3,[2 3])
     hold all
-    for n = 1:nrmaps
-        plot(1:nratoms, -meanposden(n,:)/scale_E+(n),'color', slate) 
-        plot(1:nratoms, -meannegden(n,:)/scale_E+(n),'color', golden)
+    for n = 1:numberOfMaps
+        plot(1:numberOfAtoms,...
+             -meanpositiveDensities(n,:)/scale_E+(n),...
+             'color', purple,...
+             'LineWidth',lineWidth)
+         
+        plot(1:numberOfAtoms,...
+             -meanNegativeDensitues(n,:)/scale_E+(n),...
+             'color', golden,...
+             'LineWidth',lineWidth)
     end
-    for i = 1:nrmaps
-        line([1 nratoms], [(i) (i)],'color', [0.8 0.8 0.8])
+
+    for i = 1:numberOfMaps
+        line([1 numberOfAtoms], [(i) (i)],'color', silver)
         hold all
     end 
-    for h = 1:length(limits_all)
-        line([limits_all(h,1)-0.5 limits_all(h,1)-0.5],[0 nrmaps+1],'color', 'k')
-        line([limits_all(h,2)+0.5 limits_all(h,2)+0.5],[0 nrmaps+1],'color', 'k')
-    end 
-    set(gca,'TickDir','out','Ytick',1:nrmaps,'Yticklabel', timeticks)
-    set(gca,'XTickLabel',{'A', 'B', 'C', 'D', 'E', 'F','G','RET'},'XTick', mean(limits_all,2))
-    ylim([0 nrmaps+1])
-    xlim([1 1787])
-    title('All atoms (protein only)')
-    set(gca,'Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize',fontsize)
     
-% 3. mean pos/neg density, C alpha atoms
+    for h = 1:length(limitsHelix)
+        line([limitsHelix(h,1)-0.5 limitsHelix(h,1)-0.5],[0 numberOfMaps+1],'color', 'k')
+        line([limitsHelix(h,2)+0.5 limitsHelix(h,2)+0.5],[0 numberOfMaps+1],'color', 'k')
+    end 
+    set(gca,'TickDir','out','Ytick',1:numberOfMaps,'Yticklabel', timePointLabels)
+    set(gca,'XTickLabel',labelAll,'XTick', mean(limitsHelix,2))
+    ylim([0 numberOfMaps+1])
+    xlim([1 numberOfAtoms])
+    title('All atoms (protein only)')
+    set(gca,'Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize',fontSize)
+
+% 3. Mean pos/neg density, C-alpha atoms
 subplot(2,3,[5 6])
     hold all
-    for n = 1:nrmaps
-        plot(1:length(selected_Ca), -meanposden(n,selected_Ca)/scale_E+(n),'color', slate) 
-        plot(1:length(selected_Ca), -meannegden(n,selected_Ca)/scale_E+(n),'color', golden)
+    for n = 1:numberOfMaps
+        plot(1:length(selectedCA),...
+             -meanpositiveDensities(n,selectedCA)/scale_E+(n),...
+             'color', purple,...
+             'LineWidth',lineWidth)
+         
+        plot(1:length(selectedCA),...
+             -meanNegativeDensitues(n,selectedCA)/scale_E+(n),...
+             'color', golden,...
+             'LineWidth',lineWidth)
     end
-    for i = 1:nrmaps
-        line([1 length(selected_Ca)], [(i) (i)],'color', [0.8 0.8 0.8])
-    end   
-    for h = 1:length(limits_Ca)
-        line([limits_Ca(h,1)-0.5 limits_Ca(h,1)-0.5],[0 nrmaps+1],'color', 'k')
-        line([limits_Ca(h,2)+0.5 limits_Ca(h,2)+0.5],[0 nrmaps+1],'color', 'k')
+
+    for i = 1:numberOfMaps
+        line([1 length(selectedCA)], [(i) (i)],'color', silver)
+    end
+
+    for h = 1:length(limitsCA)
+        line([limitsCA(h,1)-0.5 limitsCA(h,1)-0.5],[0 numberOfMaps+1],'color', 'k')
+        line([limitsCA(h,2)+0.5 limitsCA(h,2)+0.5],[0 numberOfMaps+1],'color', 'k')
     end 
-    set(gca,'XTickLabel',{'A', 'B', 'C', 'D', 'E', 'F','G'},'XTick', mean(limits_Ca,2)')
-    set(gca,'TickDir','out','Ytick',1:nrmaps,'Yticklabel', timeticks)
-    ylim([0 nrmaps+1])
-    xlim([1 length(selected_Ca)])
+    set(gca,'XTickLabel',labelCA,'XTick', mean(limitsCA,2)')
+    set(gca,'TickDir','out','Ytick',1:numberOfMaps,'Yticklabel', timePointLabels)
+    ylim([0 numberOfMaps+1])
+    xlim([1 length(selectedCA)])
     title('C alphas')
-    set(gca,'Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize',fontsize)
+    set(gca,'Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize',fontSize)
 
 % 4. Pearson correlation
 subplot(2,3,4)
-    imagesc(Pscore)
+    imagesc(pearsonCorrelation)
     colorbar
     axis('square')
     caxis([0 1])
-    set(gca,'TickDir','out','Ydir','reverse', 'XAxisLocation', 'top', 'box','on','FontSize', fontsize)
-    set(gca,'Ytick',1:nrmaps,'Yticklabel', timeticks,'Xtick',1:nrmaps,'Xticklabel', timeticks)
-    title('Correlation')
-    
+    set(gca,...
+        'TickDir','out',...
+        'Ydir','reverse',...
+        'XAxisLocation', 'top',...
+        'box','on',...
+        'FontSize', fontSize)
 
+    set(gca,...
+        'Ytick',1:numberOfMaps,...
+        'Yticklabel',timePointLabels,...
+        'Xtick',1:numberOfMaps,...
+        'Xticklabel', timePointLabels)
+    title('Correlation')
     
 % OPTIONAL CONTROL SECTION
 %**************************************************************************
 % - CHECK GRID
 %   load a map
-%       map3 = hdf5read([indir mapnames{3} '.h5'],'map');
+%       map3 = h5read([indir mapnames{3} '.h5'],'/map');
 %   check that the size of the map is the same as for gX / gY / gZ 
 %   if not, change the order of Y Z X in the meshgrid command 
 %
@@ -320,7 +435,7 @@ subplot(2,3,4)
 %     aX = [testpdb.Model.Atom.X]';
 %     aY = [testpdb.Model.Atom.Y]';
 %     aZ = [testpdb.Model.Atom.Z]';
-%     map3 = hdf5read([indir mapnames{3} '_cartesian.h5'],'map');
+%     map3 = h5read([indir mapnames{3} '_cartesian.h5'],'/map');
 %     testdensities = interp3(gY,gZ,gX,map3, aY, aZ , aX)
 % 
 %     For this test set (THR 24 C; TYR 43 OH; GLY 63 C; VAL 217 O)
