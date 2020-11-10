@@ -19,15 +19,14 @@
 %   selected atoms or used for further analysis
 %
 % This script is an example for analysis of three maps (16 ns, 760 ns and 1.725 ms).
-% Before analysis, execute "process_maps.sh" to convert the maps to 
+% Before analysis, execute "processMaps.sh" to convert the maps to 
 % cartesian coordinates and .h5 format.
 % -------------------------------------------------------------------------
 
 
 %% INPUT
 % -------------------------------------------------------------------------
-clear
-clc
+
 % SPHERE AND SIGMA SETTINGS
 radius = 2; % Å
 gridSpacing = 0.5; %Å, how dense grid within sphere

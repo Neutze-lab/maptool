@@ -1,7 +1,7 @@
-% maptool_bR_ref
+% maptool_rhodopsin
 %% -------------------------------------------------------------------------
 % written by Cecilia Wickstrand, 05-04-2020
-% modified by Adams Vallejos, 09-11-2020
+% modified by Adams Vallejos
 %
 % publication: 
 % "A tool for visualizing protein motions in time-resolved crystallography"
@@ -26,8 +26,7 @@
 
 %% INPUT
 % -------------------------------------------------------------------------
-clear
-clc
+
 % SPHERE AND SIGMA SETTINGS
 radius = 2; % Å
 gridSpacing = 0.5; %Å, how dense grid within sphere
